@@ -71,6 +71,13 @@ const PortfolioForm = ({ onAnalyze }: PortfolioFormProps) => {
             return;
         }
 
+        // Ensure all tickers are selected
+        const unselectedTickers = portfolio.some((stock) => !stock.ticker);
+        if (unselectedTickers) {
+            alert("All stocks must have a selected ticker.");
+            return;
+        }
+
         onAnalyze(portfolio); // Pass the portfolio to the parent component
     };
 

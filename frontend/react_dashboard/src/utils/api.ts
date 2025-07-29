@@ -17,7 +17,15 @@ type AnalyzePortfolioResponse = {
     sharpe_ratio: number;
     max_drawdown: number;
     portfolio_daily_returns: number[];
-    dates?: string[];
+    dates: string[];
+};
+
+type AnalyzeStockResponse = {
+    average_return: number;
+    volatility: number;
+    prediction: string;
+    historical_prices: number[];
+    dates: string[];
 };
 
 const apiClient = axios.create({
@@ -37,6 +45,16 @@ export const analyzePortfolio = async (portfolio: { ticker: string; weight: numb
         } else {
             console.error('Error analyzing portfolio:', error);
         }
+        throw error;
+    }
+};
+
+export const analyzeStock = async (ticker: string): Promise<AnalyzeStockResponse> => {
+    try {
+        const response = await apiClient.get<AnalyzeStockResponse>(`/analyze_stock?ticker=${ticker}`);
+        return response.data;
+    } catch (error) {
+        console.error('Error analyzing stock:', error);
         throw error;
     }
 };

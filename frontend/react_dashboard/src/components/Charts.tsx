@@ -17,14 +17,15 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, T
 interface ChartsProps {
     data: number[];
     labels: string[];
+    legendLabel: string;
 }
 
-const Charts = ({ data, labels }: ChartsProps) => {
+const Charts = ({ data, labels, legendLabel }: ChartsProps) => {
     const chartData = {
         labels,
         datasets: [
             {
-                label: 'Portfolio Returns',
+                label: legendLabel,
                 data,
                 borderColor: 'rgba(75, 192, 192, 1)',
                 backgroundColor: 'rgba(75, 192, 192, 0.2)',

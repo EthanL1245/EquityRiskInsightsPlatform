@@ -183,3 +183,34 @@ def get_tickers():
         return tickers
     except Exception as e:
         return {"error": "Failed to fetch tickers", "details": str(e)}
+
+@app.get("/analyze_stock")
+def analyze_stock(ticker: str):
+    try:
+        # Fetch historical data for the stock
+        ticker_data = yf.Ticker(ticker)
+        history = ticker_data.history(period="1y")
+
+        if history.empty:
+            return {"error": f"No data found for ticker: {ticker}"}
+
+        # Calculate historical metrics
+        historical_prices = history["Close"].tolist()
+        dates = history.index.strftime('%Y-%m-%d').tolist()
+        daily_returns = history["Close"].pct_change().dropna()
+
+        average_return = daily_returns.mean()
+        volatility = daily_returns.std()
+
+        # Placeholder for prediction (can be replaced with a real model)
+        prediction = "Uptrend" if average_return > 0 else "Downtrend"
+
+        return {
+            "average_return": average_return,
+            "volatility": volatility,
+            "prediction": prediction,
+            "historical_prices": historical_prices,
+            "dates": dates
+        }
+    except Exception as e:
+        return {"error": "Failed to analyze stock", "details": str(e)}

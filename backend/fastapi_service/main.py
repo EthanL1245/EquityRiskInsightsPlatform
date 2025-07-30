@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 import math
+from joblib import load
 
 app = FastAPI()
 
@@ -202,8 +203,22 @@ def analyze_stock(ticker: str):
         average_return = daily_returns.mean()
         volatility = daily_returns.std()
 
-        # Placeholder for prediction (can be replaced with a real model)
-        prediction = "Uptrend" if average_return > 0 else "Downtrend"
+        # Load the trained model
+        model_path = 'models/basic_stock_model.pkl'
+        model = load(model_path)
+
+        # Prepare features for prediction
+        history['SMA_10'] = history['Close'].rolling(window=10).mean()
+        history['SMA_50'] = history['Close'].rolling(window=50).mean()
+        history['RSI'] = 100 - (100 / (1 + history['Close'].diff().clip(lower=0).rolling(window=14).mean() /
+                                       -history['Close'].diff().clip(upper=0).rolling(window=14).mean()))
+
+        latest_features = history[['SMA_10', 'SMA_50', 'RSI']].iloc[-1].values.reshape(1, -1)
+
+        if np.isnan(latest_features).any():
+            prediction = "Insufficient data for prediction"
+        else:
+            prediction = "Up Tomorrow" if model.predict(latest_features)[0] == 1 else "Down Tomorrow"
 
         return {
             "average_return": average_return,

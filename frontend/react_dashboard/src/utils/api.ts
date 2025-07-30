@@ -26,6 +26,15 @@ type AnalyzeStockResponse = {
     prediction: string;
     historical_prices: number[];
     dates: string[];
+    bollinger_bands: {
+        upper: number[];
+        lower: number[];
+    };
+    macd: number[];
+    signal_line: number[];
+    beta: number;
+    value_at_risk: number;
+    conditional_var: number;
 };
 
 const apiClient = axios.create({

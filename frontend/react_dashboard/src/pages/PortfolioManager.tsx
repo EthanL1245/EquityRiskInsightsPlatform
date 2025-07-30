@@ -6,12 +6,7 @@ import Charts from '../components/Charts';
 import { analyzePortfolio } from '../utils/api';
 
 export default function PortfolioManager() {
-    const [metrics, setMetrics] = useState<{
-        portfolio_returns: number;
-        portfolio_volatility: number;
-        sharpe_ratio: number;
-        max_drawdown: number;
-    } | null>(null); // Stores portfolio metrics
+    const [metrics, setMetrics] = useState<Record<string, number | string> | null>(null); // Stores portfolio metrics
     const [chartData, setChartData] = useState<number[]>([]); // Stores chart data (e.g., portfolio returns)
     const [chartLabels, setChartLabels] = useState<string[]>([]); // Stores chart labels (e.g., dates)
     const [cumulativeChartData, setCumulativeChartData] = useState<number[]>([]); // Stores cumulative returns data
@@ -22,10 +17,10 @@ export default function PortfolioManager() {
 
             // Update metrics and chart data
             setMetrics({
-                portfolio_returns: response.portfolio_returns,
-                portfolio_volatility: response.portfolio_volatility,
-                sharpe_ratio: response.sharpe_ratio,
-                max_drawdown: response.max_drawdown,
+                "Portfolio Returns": response.portfolio_returns,
+                "Portfolio Volatility": response.portfolio_volatility,
+                "Sharpe Ratio": response.sharpe_ratio,
+                "Max Drawdown": response.max_drawdown,
             });
 
             // Update chart data (e.g., daily returns)
@@ -53,7 +48,17 @@ export default function PortfolioManager() {
             <PortfolioForm onAnalyze={handleAnalyzePortfolio} />
 
             {/* Metrics Table */}
-            {metrics && <MetricsTable metrics={metrics} />}
+            {metrics && (
+                <MetricsTable 
+                    metrics={metrics} 
+                    metricDescriptions={{
+                        'Portfolio Returns': 'The average daily gain or loss of the portfolio. Higher values are better.',
+                        'Portfolio Volatility': 'How much the portfolio value fluctuates. Lower values indicate more stability.',
+                        'Sharpe Ratio': 'A measure of risk-adjusted returns. Values above 1 are considered good.',
+                        'Max Drawdown': 'The largest drop in portfolio value from a peak. Smaller drawdowns are better.'
+                    }}
+                />
+            )}
 
             {/* Charts */}
             {chartData.length > 0 && <Charts legendLabel="Portfolio Returns" data={chartData} labels={chartLabels} />}

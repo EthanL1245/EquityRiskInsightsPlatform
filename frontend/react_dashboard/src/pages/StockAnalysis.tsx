@@ -9,11 +9,7 @@ export default function StockAnalysis() {
     const [ticker, setTicker] = useState(''); // Stores the stock ticker input
     const [options, setOptions] = useState<{ label: string; value: string }[]>([]); // Stores stock options
     const [chartSelectedOptionLabel, setChartSelectedOption] = useState<string>(''); // Stores selected stock option label
-    const [metrics, setMetrics] = useState<{
-        average_return: number;
-        volatility: number;
-        prediction: string;
-    } | null>(null); // Stores stock metrics
+    const [metrics, setMetrics] = useState<Record<string, number | string> | null>(null); // Stores stock metrics
     const [chartData, setChartData] = useState<number[]>([]); // Stores historical price data
     const [chartLabels, setChartLabels] = useState<string[]>([]); // Stores dates for the chart
 
@@ -46,11 +42,20 @@ export default function StockAnalysis() {
             const response = await analyzeStock(ticker);
 
             // Update metrics and chart data
-            setMetrics({
-                average_return: response.average_return,
-                volatility: response.volatility,
-                prediction: response.prediction,
-            });
+            const extendedMetrics = {
+                'Average Return': response.average_return,
+                'Volatility': response.volatility,
+                'Bollinger Band Upper': response.bollinger_bands.upper[response.bollinger_bands.upper.length - 1],
+                'Bollinger Band Lower': response.bollinger_bands.lower[response.bollinger_bands.lower.length - 1],
+                'Latest MACD': response.macd[response.macd.length - 1],
+                'Signal Line': response.signal_line[response.signal_line.length - 1],
+                'Beta': response.beta,
+                'Value at Risk (VaR)': response.value_at_risk,
+                'Conditional VaR': response.conditional_var,
+                'Prediction': response.prediction,
+            };
+
+            setMetrics(extendedMetrics);
 
             setChartData(response.historical_prices || []);
             setChartLabels(response.dates || []);
@@ -79,7 +84,23 @@ export default function StockAnalysis() {
             </div>
 
             {/* Metrics Table */}
-            {metrics && <MetricsTable metrics={metrics} />}
+            {metrics && (
+                <MetricsTable
+                    metrics={metrics}
+                    metricDescriptions={{
+                        'Average Return': 'The average daily return over the selected period. Positive means gains, negative means losses.',
+                        'Volatility': 'The standard deviation of daily returns — higher values mean the price is more volatile.',
+                        'Bollinger Band Upper': 'Upper bound of the expected price range based on volatility. Prices near this band may indicate overbought conditions.',
+                        'Bollinger Band Lower': 'Lower bound of the expected price range based on volatility. Prices near this band may indicate oversold conditions.',
+                        'Latest MACD': 'A momentum indicator that shows the difference between short-term and long-term trends. Positive suggests upward momentum, negative suggests downward.',
+                        'Signal Line': 'A smoothed version of MACD used to confirm trends. A crossover above is bullish, below is bearish.',
+                        'Beta': 'A measure of how much the stock moves relative to the market. Above 1 means more volatile than the market; below 1 means less volatile.',
+                        'Value at Risk (VaR)': 'The worst expected daily loss with 95% confidence. Useful for understanding downside risk.',
+                        'Conditional VaR': 'The average loss on the worst 5% of days — shows potential severity beyond normal risk levels.',
+                        'Prediction': 'The model\'s forecast for the stock\'s movement tomorrow: up or down based on recent indicators.'
+                    }}
+                />
+            )}
 
             {/* Charts */}
             {chartData.length > 0 && <Charts legendLabel={`${chartSelectedOptionLabel} Prices`} data={chartData} labels={chartLabels} />}

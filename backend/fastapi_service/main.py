@@ -67,10 +67,11 @@ def analyze_portfolio(portfolio: List[Stock]):
     portfolio_returns = np.dot(returns_df.mean(), weights)  # Weighted average return
     portfolio_volatility = np.sqrt(np.dot(weights, np.dot(returns_df.cov(), weights)))  # Risk
 
-    risk_free_rate = 0.02 / 252  # Daily risk-free rate (assuming 252 trading days in a year)
+    trading_days = 252  # Number of trading days in a year
+    risk_free_rate = 0.02 / trading_days  # Daily risk-free rate (assuming 252 trading days in a year)
 
     # Sharpe Ratio
-    sharpe_ratio = (portfolio_returns - risk_free_rate) / portfolio_volatility
+    sharpe_ratio = ((portfolio_returns - risk_free_rate) / portfolio_volatility) * np.sqrt(trading_days)
 
     # Maximum Drawdown
     cumulative_returns = (1 + returns_df).cumprod()
@@ -81,8 +82,8 @@ def analyze_portfolio(portfolio: List[Stock]):
     portfolio_daily_returns = returns_df.dot(weights)
 
     def sanitize_value(value):
-        if isinstance(value, float) and (math.isnan(value) or math.isinf(value)):
-            return None  # Replace with a default value if needed
+        if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+            return None  # Replace invalid float values with None
         return value
 
     def sanitize_data_and_trim(data, dates):
@@ -213,6 +214,31 @@ def analyze_stock(ticker: str):
         history['RSI'] = 100 - (100 / (1 + history['Close'].diff().clip(lower=0).rolling(window=14).mean() /
                                        -history['Close'].diff().clip(upper=0).rolling(window=14).mean()))
 
+        # Add Bollinger Bands
+        history['BB_upper'] = history['Close'].rolling(window=20).mean() + (history['Close'].rolling(window=20).std() * 2)
+        history['BB_lower'] = history['Close'].rolling(window=20).mean() - (history['Close'].rolling(window=20).std() * 2)
+
+        # Add MACD (Moving Average Convergence Divergence)
+        history['EMA_12'] = history['Close'].ewm(span=12, adjust=False).mean()
+        history['EMA_26'] = history['Close'].ewm(span=26, adjust=False).mean()
+        history['MACD'] = history['EMA_12'] - history['EMA_26']
+        history['Signal_Line'] = history['MACD'].ewm(span=9, adjust=False).mean()
+
+        # Calculate Beta (correlation with market index)
+        market_data = yf.Ticker('^GSPC').history(period="1y")['Close'].pct_change().dropna()
+        stock_returns = history['Close'].pct_change().dropna()
+        aligned = pd.concat([stock_returns, market_data], axis=1).dropna()
+        beta = np.cov(aligned.iloc[:,0], aligned.iloc[:,1])[0,1] / np.var(aligned.iloc[:,1])
+
+        # Calculate Value at Risk (VaR)
+        confidence_level = 0.95
+        sorted_returns = stock_returns.sort_values()
+        var_index = int((1 - confidence_level) * len(sorted_returns))
+        value_at_risk = sorted_returns.iloc[var_index]
+
+        # Add Conditional VaR (Expected Shortfall)
+        conditional_var = sorted_returns.iloc[:var_index].mean()
+
         latest_features = history[['SMA_10', 'SMA_50', 'RSI']].iloc[-1].values.reshape(1, -1)
 
         if np.isnan(latest_features).any():
@@ -220,12 +246,28 @@ def analyze_stock(ticker: str):
         else:
             prediction = "Up Tomorrow" if model.predict(latest_features)[0] == 1 else "Down Tomorrow"
 
-        return {
-            "average_return": average_return,
-            "volatility": volatility,
+        def sanitize_value(value):
+            if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+                return None  # Replace invalid float values with None
+            return value
+
+        sanitized_response = {
+            "average_return": sanitize_value(average_return),
+            "volatility": sanitize_value(volatility),
             "prediction": prediction,
             "historical_prices": historical_prices,
-            "dates": dates
+            "dates": dates,
+            "bollinger_bands": {
+                "upper": [sanitize_value(v) for v in history['BB_upper'].tolist()],
+                "lower": [sanitize_value(v) for v in history['BB_lower'].tolist()]
+            },
+            "macd": [sanitize_value(v) for v in history['MACD'].tolist()],
+            "signal_line": [sanitize_value(v) for v in history['Signal_Line'].tolist()],
+            "beta": sanitize_value(beta),
+            "value_at_risk": sanitize_value(value_at_risk),
+            "conditional_var": sanitize_value(conditional_var)
         }
+
+        return sanitized_response
     except Exception as e:
         return {"error": "Failed to analyze stock", "details": str(e)}
